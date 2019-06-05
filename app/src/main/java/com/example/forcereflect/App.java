@@ -7,6 +7,7 @@ public class App extends Application {
     @Override
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
-        ReflectHelper.unseal(this);
+//        ReflectHelper.unseal(this);
+        ReflectHelper2.INSTANCE.unseal(this);
     }
 }
