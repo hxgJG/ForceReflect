@@ -1,17 +1,23 @@
 package com.example.forcereflect;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.util.Log;
 
 import java.lang.reflect.Method;
 
+import static android.os.Build.VERSION.PREVIEW_SDK_INT;
 import static android.os.Build.VERSION.SDK_INT;
+import static android.os.Build.VERSION_CODES.P;
 
 public class ReflectHelper {
     private static final String TAG = "ReflectHelper";
-
+    private static final int UNKNOWN = -9999;
+    private static final int ERROR = -20;
     private static Object sVmRuntime;
     private static Method setHiddenApiExemptions;
+    private static int unsealed = UNKNOWN;
 
     static {
         try {
@@ -27,22 +33,46 @@ public class ReflectHelper {
         }
     }
 
-    public static int unseal(Context context) {
+    public static void unseal(Context context) {
         if (SDK_INT < 28) {
             // Below Android P, ignore
-            return 0;
+            return;
         }
 
         // try exempt API first.
         if (exemptAll()) {
-            return 0;
+            return;
         }
 
         if (context == null) {
-            return -10;
+            return;
         }
 
-        return -1;
+        ApplicationInfo applicationInfo = context.getApplicationInfo();
+
+        synchronized (ReflectHelper.class) {
+            if (unsealed != UNKNOWN) {
+                return;
+            }
+
+            unsealed = 0;
+
+            if ((SDK_INT == P && PREVIEW_SDK_INT > 0) || SDK_INT > P) {
+                return;
+            }
+
+            // Android P, we need to sync the flags with ApplicationInfo
+            // We needn't to this on Android Q.
+            try {
+                @SuppressLint("PrivateApi")
+                Method setHiddenApiEnforcementPolicy = ApplicationInfo.class
+                        .getDeclaredMethod("setHiddenApiEnforcementPolicy", int.class);
+                setHiddenApiEnforcementPolicy.invoke(applicationInfo, 0);
+            } catch (Throwable e) {
+                e.printStackTrace();
+                unsealed = ERROR;
+            }
+        }
     }
 
     /**
