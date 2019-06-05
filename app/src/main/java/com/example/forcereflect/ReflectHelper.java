@@ -1,15 +1,11 @@
 package com.example.forcereflect;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.pm.ApplicationInfo;
 import android.util.Log;
 
 import java.lang.reflect.Method;
 
-import static android.os.Build.VERSION.PREVIEW_SDK_INT;
 import static android.os.Build.VERSION.SDK_INT;
-import static android.os.Build.VERSION_CODES.P;
 
 public class ReflectHelper {
     private static final String TAG = "ReflectHelper";
@@ -31,12 +27,6 @@ public class ReflectHelper {
         }
     }
 
-    private static int UNKNOWN = -9999;
-
-    private static final int ERROR_SET_APPLICATION_FAILED = -20;
-
-    private static int unsealed = UNKNOWN;
-
     public static int unseal(Context context) {
         if (SDK_INT < 28) {
             // Below Android P, ignore
@@ -52,37 +42,7 @@ public class ReflectHelper {
             return -10;
         }
 
-        ApplicationInfo applicationInfo = context.getApplicationInfo();
-
-        synchronized (ReflectHelper.class) {
-            if (unsealed != UNKNOWN) {
-                return unsealed;
-            }
-
-            // Refer: https://android.googlesource.com/platform/art/+/master/runtime/hidden_api.h
-            // Hidden API enforcement policy
-            // This must be kept in sync with ApplicationInfo.ApiEnforcementPolicy in
-            // frameworks/base/core/java/android/content/pm/ApplicationInfo.java
-            //HIDDEN_API_ENFORCEMENT_NONE = 0
-            unsealed = 0;
-
-            if ((SDK_INT == P && PREVIEW_SDK_INT > 0) || SDK_INT > P) {
-                return unsealed;
-            }
-
-            // Android P, we need to sync the flags with ApplicationInfo
-            // We needn't to this on Android Q.
-            try {
-                @SuppressLint("PrivateApi") Method setHiddenApiEnforcementPolicy = ApplicationInfo.class
-                    .getDeclaredMethod("setHiddenApiEnforcementPolicy", int.class);
-                setHiddenApiEnforcementPolicy.invoke(applicationInfo, 0);
-            } catch (Throwable e) {
-                e.printStackTrace();
-                unsealed = ERROR_SET_APPLICATION_FAILED;
-            }
-        }
-
-        return unsealed;
+        return -1;
     }
 
     /**
@@ -101,7 +61,7 @@ public class ReflectHelper {
      * @param methods the method signature prefix, such as "Ldalvik/system", "Landroid" or even "L"
      * @return true if success
      */
-    public static boolean exempt(String... methods) {
+    private static boolean exempt(String... methods) {
         if (sVmRuntime == null || setHiddenApiExemptions == null) {
             return false;
         }
@@ -119,7 +79,7 @@ public class ReflectHelper {
      *
      * @return true if success.
      */
-    public static boolean exemptAll() {
+    private static boolean exemptAll() {
         return exempt(new String[]{"L"});
     }
 }
